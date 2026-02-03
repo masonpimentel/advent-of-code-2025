@@ -1,0 +1,75 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  static-analysis:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: Format check (black)
+            command: pipenv run black --check .
+          - name: Type check (mypy)
+            command: pipenv run mypy src
+          - name: Lint check (pylint)
+            command: pipenv run pylint src
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: ${{ matrix.name }}
+        run: |
+          pip install pipenv
+          pipenv install --dev
+          ${{ matrix.command }}
+
+  test:
+    runs-on: ubuntu-latest
+    name: Run tests and upload coverage
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install pipenv
+          pipenv install --dev
+      - name: Insert puzzle inputs
+        env:
+          DAY_01_INPUT: ${{ secrets.DAY_01_INPUT }}
+          DAY_02_INPUT: ${{ secrets.DAY_02_INPUT }}
+          DAY_03_INPUT: ${{ secrets.DAY_03_INPUT }}
+          DAY_04_INPUT: ${{ secrets.DAY_04_INPUT }}
+          DAY_05_INPUT: ${{ secrets.DAY_05_INPUT }}
+          DAY_06_INPUT: ${{ secrets.DAY_06_INPUT }}
+          DAY_07_INPUT: ${{ secrets.DAY_07_INPUT }}
+          DAY_08_INPUT: ${{ secrets.DAY_08_INPUT }}
+          DAY_09_INPUT: ${{ secrets.DAY_09_INPUT }}
+          DAY_10_INPUT: ${{ secrets.DAY_10_INPUT }}
+          DAY_11_INPUT: ${{ secrets.DAY_11_INPUT }}
+          DAY_12_INPUT: ${{ secrets.DAY_12_INPUT }}
+        run: |
+          for i in $(seq -w 1 12); do
+            var="DAY_${i}_INPUT"
+            dir="src/solvers/d${i}"
+            printf '%s' "${!var}" > "$dir/input.txt"
+          done
+      - name: Run tests without coverage for performance times
+        run: |
+          pipenv run pytest -s test
+      - name: Run tests with coverage
+        run: |
+          pipenv run pytest --cov=src --cov-report=xml test
+          pipenv run coverage xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          fail_ci_if_error: true

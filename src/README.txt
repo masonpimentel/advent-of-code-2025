@@ -1,0 +1,1 @@
+I wanted to avoid adding this extra file level but it's the only way I could get mypy to work with pytest. If you know how to fix this please let me know!
